@@ -1,0 +1,21 @@
+[project]
+name = "AIVideoEnhancer"
+version = "0.1.0"
+description = "AI Video Enhancer for local GPU processing"
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision",
+    "realesrgan>=0.2.5",
+    "gfpgan>=1.3.8",
+    "basicsr",
+    "facexlib",
+    "opencv-python",
+    "ffmpeg-python",
+    "tqdm",
+    "numpy",
+    "requests",
+]
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
