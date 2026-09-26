@@ -1,19 +1,20 @@
 # AIVideoEnhancer 🚀
 
-A lightweight, local-first AI video enhancement tool designed to drastically improve video resolution, reduce blur, eliminate compression artifacts, and upscale footage using state-of-the-art deep learning models (Real-ESRGAN).
+A lightweight, local-first AI video enhancement and super-resolution tool with both a **modern fluid Web UI** and a fast **CLI**, engineered to drastically improve video quality, reduce blur, eliminate compression artifacts, and upscale footage using state-of-the-art deep learning models (Real-ESRGAN).
 
-Optimized for consumer GPUs with **6GB VRAM** (such as NVIDIA GeForce RTX 4050 Laptop / RTX 4060) using streaming FFmpeg pipes and intelligent spatial tiling.
+Optimized specifically for consumer GPUs with **6GB VRAM** (such as NVIDIA GeForce RTX 4050 Laptop / RTX 4060) using streaming FFmpeg pipes and spatial tiling.
 
 ---
 
 ## ✨ Features
 
-- **Drastic Quality Upscaling**: 2x and 4x super-resolution with fine detail synthesis.
-- **Blur & Artifact Reduction**: Removes video noise and JPEG/H.264 compression artifacts.
-- **Low VRAM Consumption**: Runs smoothly on 6GB VRAM (or even 4GB) via configurable tile sizes (`--tile 256`).
-- **Zero Memory Leaks**: Uses streaming FFmpeg raw video pipes (does not extract thousands of frames to disk).
-- **Audio Preservation**: Copies the original audio streams without transcoding.
-- **FP16 Half-Precision**: Cuts GPU VRAM usage in half and boosts inference speed.
+- 🌐 **Modern Fluid Web UI**: Drag-and-drop video upload, real-time WebSocket progress tracking (FPS, ETA, frame counter), live hardware detection badge, and built-in video player.
+- ⚡ **Drastic Quality Upscaling**: 2x and 4x super-resolution with fine detail synthesis.
+- 🎯 **Blur & Artifact Reduction**: Removes video noise and H.264 / compression artifacts.
+- 💾 **Low VRAM Consumption**: Runs smoothly on 6GB VRAM (or even 4GB) via configurable tile sizes (`--tile 256`).
+- 🌊 **Zero-Disk Streaming**: Uses FFmpeg raw video pipes (never extracts thousands of PNG frames to disk).
+- 🎵 **Audio Preservation**: Copies the original multi-channel audio stream with zero quality degradation.
+- 🚀 **FP16 Half-Precision**: Cuts GPU memory footprint in half while speeding up inference.
 
 ---
 
@@ -37,7 +38,17 @@ pip install -r requirements.txt
 
 ---
 
-## 🎬 Quick Start
+## 🌐 Launch the Web Interface
+
+Start the fluid web dashboard:
+```bash
+python app.py
+```
+Open **`http://localhost:7860`** in your browser to access the interface.
+
+---
+
+## 🎬 CLI Usage
 
 ### Basic 4x Upscaling
 ```bash
@@ -56,7 +67,7 @@ python enhance.py -i anime.mp4 -o anime_enhanced.mp4 -m RealESRGAN_x4plus_anime_
 
 ---
 
-## ⚙️ Command Line Options
+## ⚙️ CLI Options
 
 | Argument | Default | Description |
 | :--- | :--- | :--- |
@@ -74,7 +85,7 @@ python enhance.py -i anime.mp4 -o anime_enhanced.mp4 -m RealESRGAN_x4plus_anime_
 
 ## 🧪 Running Tests
 
-Run the test suite:
+Run the full automated test suite:
 ```bash
 python -m pytest tests/ -v
 ```
