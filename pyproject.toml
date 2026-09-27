@@ -2,6 +2,7 @@
 name = "aivideoenhancer"
 version = "0.1.0"
 description = "AI Video Enhancer for local GPU processing"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "torch>=2.0.0",
     "torchvision",

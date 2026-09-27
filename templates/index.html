@@ -1,438 +1,662 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AIVideoEnhancer - Professional AI Video Upscaler</title>
-    <!-- Tailwind CSS -->
+    <title>AIVideoEnhancer — Local AI Super-Resolution</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: { sans: ['Geist', 'sans-serif'], mono: ['Geist Mono', 'monospace'] },
                     colors: {
-                        brand: {
-                            50: '#eef2ff',
-                            400: '#818cf8',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                        },
-                        surface: '#0B0F19',
-                        card: '#111827',
-                    },
-                    animation: {
-                        'pulse-glow': 'pulseGlow 2.5s infinite',
-                        'gradient-x': 'gradientX 6s ease infinite',
-                    },
-                    keyframes: {
-                        pulseGlow: {
-                            '0%, 100%': { opacity: '0.6', filter: 'blur(20px)' },
-                            '50%': { opacity: '0.9', filter: 'blur(30px)' },
-                        },
-                        gradientX: {
-                            '0%, 100%': { backgroundPosition: '0% 50%' },
-                            '50%': { backgroundPosition: '100% 50%' },
-                        }
+                        ink: '#050810',
+                        surface: '#0a0d18',
+                        card: '#0f1220',
+                        border: '#1a1f35',
+                        accent: '#5b6ef5',
+                        'accent-hi': '#818cf8',
+                        muted: '#6b7280',
                     }
                 }
             }
         }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #080c14;
-            color: #f3f4f6;
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { background: #050810; color: #e2e4f0; font-family: 'Geist', sans-serif; overflow-x: hidden; }
+
+        /* Grain overlay */
+        body::before {
+            content: '';
+            position: fixed; inset: 0; z-index: 0; pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            opacity: 0.35;
         }
-        .glass-panel {
-            background: rgba(17, 24, 39, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+
+        /* Ambient radial blobs */
+        .blob { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; }
+        .blob-1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(91,110,245,0.18) 0%, transparent 70%); top: -180px; left: -180px; }
+        .blob-2 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%); bottom: -120px; right: -120px; }
+
+        /* Glass card */
+        .glass {
+            background: rgba(15,18,32,0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.07);
         }
-        .glass-panel-active {
-            background: rgba(30, 41, 59, 0.85);
-            border: 1px solid rgba(99, 102, 241, 0.5);
-            box-shadow: 0 0 25px rgba(99, 102, 241, 0.2);
+        .glass-active {
+            background: rgba(91,110,245,0.1);
+            border: 1px solid rgba(91,110,245,0.4);
+            box-shadow: 0 0 32px rgba(91,110,245,0.15);
         }
-        .slider-handle {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            background: #6366f1;
-            cursor: ew-resize;
-            box-shadow: 0 0 12px #6366f1;
+
+        /* Nav pill */
+        .nav-pill {
+            background: rgba(10,13,24,0.85);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255,255,255,0.08);
         }
-        /* Custom scrollbars */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0B0F19;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #1f2937;
-            border-radius: 4px;
-        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #050810; }
+        ::-webkit-scrollbar-thumb { background: #1a1f35; border-radius: 4px; }
+
+        /* Marquee */
+        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .marquee-inner { animation: marquee 22s linear infinite; white-space: nowrap; }
+        .marquee-inner:hover { animation-play-state: paused; }
+
+        /* Progress gradient */
+        .progress-bar { background: linear-gradient(90deg, #5b6ef5, #8b5cf6, #ec4899); }
+
+        /* Stat glow */
+        .stat-value { background: linear-gradient(135deg, #a5b4fc, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+        /* Card hover */
+        .hover-lift { transition: transform 0.4s cubic-bezier(0.23,1,0.32,1), box-shadow 0.4s ease, border-color 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 20px 60px rgba(91,110,245,0.12); border-color: rgba(91,110,245,0.35); }
+
+        /* Tile btn active */
+        .tile-active { background: #5b6ef5; border-color: #818cf8; color: white; }
+        .tile-inactive { background: rgba(15,18,32,0.8); border-color: #1a1f35; color: #9ca3af; }
+
+        /* Text reveal */
+        .reveal-word { opacity: 0.12; transition: opacity 0.1s; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white relative overflow-x-hidden">
+<body class="min-h-screen">
 
-    <!-- Subtle background glowing gradients -->
-    <div class="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[140px] pointer-events-none"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[140px] pointer-events-none"></div>
+    <!-- Ambient blobs -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
 
-    <!-- Header Navigation -->
-    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-6 py-4">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                    <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+    <!-- Floating Nav Pill -->
+    <nav class="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-full max-w-3xl px-4">
+        <div class="nav-pill rounded-2xl px-5 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center shadow-lg shadow-accent/30">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-white"></i>
                 </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
-                        AIVideoEnhancer
-                    </h1>
-                    <p class="text-xs text-slate-400">Local Real-ESRGAN GPU Pipeline</p>
-                </div>
+                <span class="text-sm font-700 tracking-tight text-white">AIVideoEnhancer</span>
             </div>
-
-            <!-- Hardware Badge -->
-            <div id="gpu-badge" class="hidden md:flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/60 shadow-inner">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                <span class="w-2 h-2 rounded-full bg-emerald-400 -ml-4"></span>
-                <span id="gpu-name" class="text-xs font-semibold text-slate-200">Detecting GPU...</span>
-                <span id="gpu-vram" class="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-mono">6GB VRAM</span>
+            <div class="flex items-center gap-4">
+                <div id="gpu-badge" class="hidden items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                    </span>
+                    <span id="gpu-name" class="text-xs text-slate-300 font-medium"></span>
+                    <span id="gpu-vram" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent/20 text-accent-hi border border-accent/20"></span>
+                </div>
+                <a href="https://github.com/vicky007111/AIVideoEnchancer" target="_blank"
+                   class="text-xs text-slate-400 hover:text-white transition-colors flex items-center gap-1.5">
+                    <i data-lucide="github" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Source</span>
+                </a>
             </div>
         </div>
-    </header>
+    </nav>
 
-    <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-8">
+    <main class="overflow-x-hidden w-full max-w-full relative z-10">
 
-        <!-- Hero Section -->
-        <div class="text-center max-w-3xl mx-auto space-y-3 pt-4">
-            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
-                <i data-lucide="zap" class="w-3.5 h-3.5 text-indigo-400"></i>
-                <span>Optimized for RTX 4050 / 4060 with 6GB VRAM Tiling</span>
+        <!-- HERO -->
+        <section class="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-24 pb-20 relative">
+            <!-- Subtle hero glow -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="w-[700px] h-[700px] rounded-full" style="background: radial-gradient(circle, rgba(91,110,245,0.09) 0%, transparent 65%);"></div>
             </div>
-            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-                Turn Low-Res Footage into <span class="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">Crisp Ultra HD</span>
-            </h2>
-            <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
-                Remove blur, synthesize ultra-sharp texture details, and upscale up to 4x locally on your machine with zero cloud costs or quality loss.
-            </p>
+
+            <div id="hero-content" class="relative z-10 max-w-6xl w-full mx-auto">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-accent/25 bg-accent/8 text-accent-hi text-xs font-medium mb-8 opacity-0" id="hero-tag">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    Real-ESRGAN · Local GPU · RTX 4050 / 4060 Optimized
+                </div>
+
+                <h1 class="text-[clamp(3rem,6vw,5.5rem)] font-900 leading-[1.04] tracking-[-0.03em] text-white mb-6 opacity-0" id="hero-h1">
+                    Restore. Upscale.<br>
+                    <span style="background: linear-gradient(135deg, #818cf8 0%, #a78bfa 40%, #ec99d3 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        Transform Video.
+                    </span>
+                </h1>
+
+                <p class="text-lg text-slate-400 max-w-xl mx-auto leading-relaxed mb-10 opacity-0" id="hero-sub">
+                    GPU-accelerated super-resolution that runs entirely on your machine.
+                    Zero cloud costs. Zero quality compromise.
+                </p>
+
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0" id="hero-ctas">
+                    <a href="#app" class="px-8 py-3.5 rounded-xl bg-accent hover:bg-accent-hi text-white font-600 text-sm tracking-wide shadow-lg shadow-accent/30 hover:shadow-accent/50 transition-all duration-300">
+                        Enhance a Video
+                    </a>
+                    <a href="https://github.com/vicky007111/AIVideoEnchancer" target="_blank"
+                       class="px-8 py-3.5 rounded-xl border border-border hover:border-accent/40 text-slate-300 hover:text-white font-600 text-sm tracking-wide transition-all duration-300 flex items-center gap-2">
+                        <i data-lucide="github" class="w-4 h-4"></i>
+                        View Source
+                    </a>
+                </div>
+            </div>
+
+            <!-- Scroll hint -->
+            <div class="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-40" id="scroll-hint">
+                <span class="text-[10px] uppercase tracking-widest text-slate-500 font-medium">Scroll</span>
+                <div class="w-px h-8 bg-gradient-to-b from-slate-500 to-transparent"></div>
+            </div>
+        </section>
+
+        <!-- MARQUEE STRIP -->
+        <div class="py-5 border-y border-border overflow-hidden bg-surface/40">
+            <div class="marquee-inner flex items-center gap-16 text-[11px] font-mono uppercase tracking-widest text-slate-500 select-none">
+                <span>Real-ESRGAN</span><span class="text-accent">·</span>
+                <span>4x Super-Resolution</span><span class="text-accent">·</span>
+                <span>FP16 Half-Precision</span><span class="text-accent">·</span>
+                <span>Zero-Disk Streaming</span><span class="text-accent">·</span>
+                <span>FFmpeg Pipe</span><span class="text-accent">·</span>
+                <span>6GB VRAM Tiling</span><span class="text-accent">·</span>
+                <span>Audio Preserved</span><span class="text-accent">·</span>
+                <span>Local GPU Inference</span><span class="text-accent">·</span>
+                <!-- Duplicate for seamless loop -->
+                <span>Real-ESRGAN</span><span class="text-accent">·</span>
+                <span>4x Super-Resolution</span><span class="text-accent">·</span>
+                <span>FP16 Half-Precision</span><span class="text-accent">·</span>
+                <span>Zero-Disk Streaming</span><span class="text-accent">·</span>
+                <span>FFmpeg Pipe</span><span class="text-accent">·</span>
+                <span>6GB VRAM Tiling</span><span class="text-accent">·</span>
+                <span>Audio Preserved</span><span class="text-accent">·</span>
+                <span>Local GPU Inference</span><span class="text-accent">·</span>
+            </div>
         </div>
 
-        <!-- Workflow Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
-            <!-- Left: Video Upload & Configuration (5 Cols) -->
-            <div class="lg:col-span-5 space-y-6">
-
-                <!-- 1. Upload Box -->
-                <div class="glass-panel rounded-2xl p-6 relative overflow-hidden transition-all duration-300 hover:border-slate-700">
-                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center mb-4">
-                        <i data-lucide="upload-cloud" class="w-4 h-4 mr-2 text-indigo-400"></i>
-                        1. Select Source Video
-                    </h3>
-
-                    <!-- Dropzone -->
-                    <div id="dropzone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/60 rounded-xl p-6 text-center cursor-pointer transition-all duration-200 bg-slate-900/40 hover:bg-slate-900/80 group">
-                        <input type="file" id="video-input" accept="video/mp4,video/x-m4v,video/*" class="hidden">
-                        <div id="dropzone-empty" class="space-y-3">
-                            <div class="w-12 h-12 rounded-xl bg-indigo-600/10 text-indigo-400 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                                <i data-lucide="video" class="w-6 h-6"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-slate-200">Click or Drag & Drop Video</p>
-                                <p class="text-xs text-slate-500 mt-1">MP4, MKV, MOV, WEBM (Up to 4K)</p>
-                            </div>
-                        </div>
-
-                        <!-- Uploaded Metadata Preview -->
-                        <div id="dropzone-preview" class="hidden space-y-3 text-left">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center flex-shrink-0">
-                                    <i data-lucide="file-video" class="w-5 h-5"></i>
-                                </div>
-                                <div class="overflow-hidden flex-1">
-                                    <p id="preview-filename" class="text-xs font-semibold text-slate-200 truncate">video.mp4</p>
-                                    <p id="preview-filesize" class="text-[11px] text-slate-400">0 MB</p>
-                                </div>
-                                <button id="btn-remove-video" class="p-1 text-slate-500 hover:text-rose-400 transition-colors">
-                                    <i data-lucide="x" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-
-                            <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800 text-[11px]">
-                                <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
-                                    <span class="text-slate-500 block">Resolution</span>
-                                    <span id="preview-res" class="font-bold text-slate-200">-</span>
-                                </div>
-                                <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
-                                    <span class="text-slate-500 block">Framerate</span>
-                                    <span id="preview-fps" class="font-bold text-slate-200">-</span>
-                                </div>
-                                <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
-                                    <span class="text-slate-500 block">Duration</span>
-                                    <span id="preview-duration" class="font-bold text-slate-200">-</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <!-- BENTO STATS GRID -->
+        <section class="py-32 px-6">
+            <div class="max-w-5xl mx-auto">
+                <div class="text-center mb-16">
+                    <p class="text-xs uppercase tracking-widest text-accent font-medium mb-3">What it does</p>
+                    <h2 class="text-3xl sm:text-4xl font-800 tracking-tight text-white" id="bento-title">
+                        Cinematic quality,<br>entirely offline.
+                    </h2>
                 </div>
 
-                <!-- 2. AI Model & Scaling Configuration -->
-                <div class="glass-panel rounded-2xl p-6 space-y-5">
-                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center">
-                        <i data-lucide="sliders" class="w-4 h-4 mr-2 text-indigo-400"></i>
-                        2. Enhancement Engine
-                    </h3>
+                <!-- 2×2 dense grid, zero voids -->
+                <div class="grid grid-cols-2 grid-rows-2 grid-flow-dense gap-4 auto-rows-[220px]">
 
-                    <!-- Model Selection Cards -->
-                    <div class="space-y-2.5">
-                        <label class="text-xs font-semibold text-slate-300">Select AI Model</label>
-                        <div class="grid grid-cols-1 gap-2.5">
-
-                            <!-- Card 1: General 4x -->
-                            <div class="model-option glass-panel glass-panel-active rounded-xl p-3.5 cursor-pointer transition-all relative overflow-hidden" data-model="RealESRGAN_x4plus" data-scale="4">
-                                <div class="flex items-start justify-between">
-                                    <div class="flex items-center space-x-2.5">
-                                        <div class="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
-                                            <i data-lucide="camera" class="w-4 h-4"></i>
-                                        </div>
-                                        <div>
-                                            <h4 class="text-xs font-bold text-white">Real-World General (4x)</h4>
-                                            <p class="text-[11px] text-slate-400">Best for real video, nature, people & cameras</p>
-                                        </div>
-                                    </div>
-                                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-300">4x UHD</span>
-                                </div>
-                            </div>
-
-                            <!-- Card 2: Anime 4x -->
-                            <div class="model-option glass-panel rounded-xl p-3.5 cursor-pointer transition-all hover:border-slate-700 relative overflow-hidden" data-model="RealESRGAN_x4plus_anime_6B" data-scale="4">
-                                <div class="flex items-start justify-between">
-                                    <div class="flex items-center space-x-2.5">
-                                        <div class="p-2 rounded-lg bg-purple-500/20 text-purple-400">
-                                            <i data-lucide="palette" class="w-4 h-4"></i>
-                                        </div>
-                                        <div>
-                                            <h4 class="text-xs font-bold text-white">Anime & 2D Art (4x)</h4>
-                                            <p class="text-[11px] text-slate-400">Optimized for clean lines and animated frames</p>
-                                        </div>
-                                    </div>
-                                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">4x Anime</span>
-                                </div>
-                            </div>
-
-                            <!-- Card 3: Anime Video 2x -->
-                            <div class="model-option glass-panel rounded-xl p-3.5 cursor-pointer transition-all hover:border-slate-700 relative overflow-hidden" data-model="realesr-animevideov3" data-scale="2">
-                                <div class="flex items-start justify-between">
-                                    <div class="flex items-center space-x-2.5">
-                                        <div class="p-2 rounded-lg bg-pink-500/20 text-pink-400">
-                                            <i data-lucide="film" class="w-4 h-4"></i>
-                                        </div>
-                                        <div>
-                                            <h4 class="text-xs font-bold text-white">Fast Anime Video (2x)</h4>
-                                            <p class="text-[11px] text-slate-400">High-speed super-resolution for video clips</p>
-                                        </div>
-                                    </div>
-                                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-pink-500/20 text-pink-300">2x Fast</span>
-                                </div>
-                            </div>
-
+                    <!-- Card A: col-span-1 row-span-1 -->
+                    <div class="glass rounded-2xl p-7 hover-lift flex flex-col justify-between bento-card overflow-hidden relative group">
+                        <div class="absolute top-0 right-0 w-32 h-32 rounded-full bg-accent/5 -translate-y-8 translate-x-8 group-hover:bg-accent/10 transition-colors duration-500"></div>
+                        <div class="p-2.5 rounded-xl bg-accent/10 w-fit border border-accent/20">
+                            <i data-lucide="maximize-2" class="w-5 h-5 text-accent-hi"></i>
+                        </div>
+                        <div>
+                            <div class="text-4xl font-900 stat-value mb-1">4x</div>
+                            <p class="text-sm text-muted leading-snug">Upscale factor — turn 480p into crisp near-4K with synthesized texture detail.</p>
                         </div>
                     </div>
 
-                    <!-- VRAM Optimization Preset -->
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-center">
-                            <label class="text-xs font-semibold text-slate-300">VRAM Tile Size</label>
-                            <span class="text-[11px] text-indigo-400 font-medium">RTX 4050 6GB Recommended: 256px</span>
+                    <!-- Card B: col-span-1 row-span-1 -->
+                    <div class="glass rounded-2xl p-7 hover-lift flex flex-col justify-between bento-card overflow-hidden relative group">
+                        <div class="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-purple-500/5 translate-y-8 -translate-x-8 group-hover:bg-purple-500/10 transition-colors duration-500"></div>
+                        <div class="p-2.5 rounded-xl bg-purple-500/10 w-fit border border-purple-500/20">
+                            <i data-lucide="cpu" class="w-5 h-5 text-purple-400"></i>
                         </div>
-                        <div class="grid grid-cols-3 gap-2">
-                            <button type="button" class="tile-btn py-2 text-xs font-semibold rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:border-indigo-500 transition-colors" data-tile="128">
-                                128px (4GB)
-                            </button>
-                            <button type="button" class="tile-btn py-2 text-xs font-semibold rounded-lg bg-indigo-600 border border-indigo-400 text-white transition-colors" data-tile="256">
-                                256px (6GB)
-                            </button>
-                            <button type="button" class="tile-btn py-2 text-xs font-semibold rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:border-indigo-500 transition-colors" data-tile="0">
-                                Full (12GB+)
-                            </button>
+                        <div>
+                            <div class="text-4xl font-900 mb-1" style="background: linear-gradient(135deg,#c084fc,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">6 GB</div>
+                            <p class="text-sm text-muted leading-snug">VRAM ceiling — spatial tiling keeps memory under control on RTX 4050 and 4060.</p>
                         </div>
                     </div>
 
-                    <!-- FP16 Toggle -->
-                    <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                        <div class="flex items-center space-x-2.5">
-                            <i data-lucide="cpu" class="w-4 h-4 text-emerald-400"></i>
-                            <div>
-                                <span class="text-xs font-semibold text-white block">FP16 Half-Precision</span>
-                                <span class="text-[10px] text-slate-400">Cuts VRAM in half & increases speed</span>
-                            </div>
+                    <!-- Card C: col-span-1 row-span-1 -->
+                    <div class="glass rounded-2xl p-7 hover-lift flex flex-col justify-between bento-card overflow-hidden relative group">
+                        <div class="absolute top-0 left-0 w-28 h-28 rounded-full bg-emerald-500/5 -translate-y-6 -translate-x-6 group-hover:bg-emerald-500/8 transition-colors duration-500"></div>
+                        <div class="p-2.5 rounded-xl bg-emerald-500/10 w-fit border border-emerald-500/20">
+                            <i data-lucide="music" class="w-5 h-5 text-emerald-400"></i>
                         </div>
-                        <input type="checkbox" id="fp16-toggle" checked class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700 focus:ring-indigo-500 cursor-pointer">
+                        <div>
+                            <div class="text-4xl font-900 mb-1" style="background: linear-gradient(135deg,#6ee7b7,#34d399); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">0dB</div>
+                            <p class="text-sm text-muted leading-snug">Audio quality loss — original multi-channel tracks copied bit-perfectly via FFmpeg.</p>
+                        </div>
                     </div>
 
-                    <!-- Start Button -->
-                    <button id="btn-start" disabled class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white font-bold text-sm tracking-wide shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:brightness-110 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2">
-                        <i data-lucide="play" class="w-4 h-4 fill-white"></i>
-                        <span>Start AI Enhancement</span>
-                    </button>
+                    <!-- Card D: col-span-1 row-span-1 -->
+                    <div class="glass rounded-2xl p-7 hover-lift flex flex-col justify-between bento-card overflow-hidden relative group">
+                        <div class="absolute bottom-0 right-0 w-28 h-28 rounded-full bg-pink-500/5 translate-y-6 translate-x-6 group-hover:bg-pink-500/8 transition-colors duration-500"></div>
+                        <div class="p-2.5 rounded-xl bg-pink-500/10 w-fit border border-pink-500/20">
+                            <i data-lucide="hard-drive" class="w-5 h-5 text-pink-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-4xl font-900 mb-1" style="background: linear-gradient(135deg,#f9a8d4,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">0 files</div>
+                            <p class="text-sm text-muted leading-snug">Temporary frames written to disk — raw video streams through FFmpeg pipes directly.</p>
+                        </div>
+                    </div>
 
                 </div>
-
             </div>
+        </section>
 
-            <!-- Right: Live Processing HUD & Player Comparison (7 Cols) -->
-            <div class="lg:col-span-7 space-y-6">
-
-                <!-- Live Processing HUD (shown during processing) -->
-                <div id="hud-panel" class="hidden glass-panel rounded-2xl p-6 space-y-6 border border-indigo-500/30 relative overflow-hidden">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-3 h-3 rounded-full bg-indigo-500 animate-ping"></div>
-                            <h3 id="hud-step-text" class="text-sm font-bold text-white">Enhancing Video Frames...</h3>
-                        </div>
-                        <span id="hud-percent" class="text-xl font-extrabold text-indigo-400 font-mono">0.0%</span>
-                    </div>
-
-                    <!-- Progress Bar -->
-                    <div class="w-full h-3 rounded-full bg-slate-950 overflow-hidden border border-slate-800 p-0.5">
-                        <div id="hud-progress-bar" class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-300 w-0"></div>
-                    </div>
-
-                    <!-- Metrics Grid -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Frames</span>
-                            <span id="hud-frames" class="text-sm font-bold text-slate-200 font-mono">0 / 0</span>
-                        </div>
-                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Speed</span>
-                            <span id="hud-fps" class="text-sm font-bold text-indigo-400 font-mono">0.0 fps</span>
-                        </div>
-                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Elapsed</span>
-                            <span id="hud-elapsed" class="text-sm font-bold text-slate-200 font-mono">0.0s</span>
-                        </div>
-                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Est. Time Left</span>
-                            <span id="hud-eta" class="text-sm font-bold text-emerald-400 font-mono">--</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Video Player Preview / Comparison Area -->
-                <div class="glass-panel rounded-2xl p-6 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center">
-                            <i data-lucide="eye" class="w-4 h-4 mr-2 text-indigo-400"></i>
-                            Video Preview & Output
-                        </h3>
-                        <div id="output-actions" class="hidden flex items-center space-x-2">
-                            <a id="btn-download" href="#" download class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors flex items-center space-x-1.5 shadow-lg shadow-emerald-600/30">
-                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                                <span>Download Enhanced Video</span>
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- Video Container -->
-                    <div class="relative w-full aspect-video rounded-xl bg-slate-950 border border-slate-800/80 overflow-hidden flex items-center justify-center">
-                        <div id="player-placeholder" class="text-center p-6 space-y-2 text-slate-600">
-                            <i data-lucide="play-circle" class="w-12 h-12 mx-auto stroke-1 text-slate-700"></i>
-                            <p class="text-xs">Upload a video to preview and compare enhanced output</p>
-                        </div>
-
-                        <!-- Uploaded / Enhanced Video Element -->
-                        <video id="main-video" controls class="hidden w-full h-full object-contain rounded-xl"></video>
-                    </div>
-
-                    <div id="comparison-badge" class="hidden flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs">
-                        <div class="flex items-center space-x-2">
-                            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
-                            <span class="font-semibold">AI Enhancement Finished! Audio preserved without quality loss.</span>
-                        </div>
-                    </div>
-                </div>
-
+        <!-- GSAP SCROLL REVEAL SECTION -->
+        <section class="py-32 px-6 border-y border-border/40">
+            <div class="max-w-3xl mx-auto text-center" id="reveal-section">
+                <p class="text-xs uppercase tracking-widest text-accent font-medium mb-8">How it works</p>
+                <p class="text-2xl sm:text-3xl font-600 leading-[1.5] tracking-tight text-slate-300" id="reveal-text">
+                    <span class="reveal-word">Every</span>
+                    <span class="reveal-word">frame</span>
+                    <span class="reveal-word">passes</span>
+                    <span class="reveal-word">through</span>
+                    <span class="reveal-word">RRDBNet,</span>
+                    <span class="reveal-word">synthesizing</span>
+                    <span class="reveal-word">detail</span>
+                    <span class="reveal-word">your</span>
+                    <span class="reveal-word">camera</span>
+                    <span class="reveal-word">never</span>
+                    <span class="reveal-word">captured.</span>
+                    <span class="reveal-word">Tiled,</span>
+                    <span class="reveal-word">stitched,</span>
+                    <span class="reveal-word">streamed</span>
+                    <span class="reveal-word">—</span>
+                    <span class="reveal-word">no</span>
+                    <span class="reveal-word">disk,</span>
+                    <span class="reveal-word">no</span>
+                    <span class="reveal-word">cloud,</span>
+                    <span class="reveal-word">no</span>
+                    <span class="reveal-word">compromise.</span>
+                </p>
             </div>
+        </section>
 
-        </div>
+        <!-- APP SECTION -->
+        <section id="app" class="py-32 px-6">
+            <div class="max-w-6xl mx-auto">
+
+                <div class="text-center mb-14">
+                    <p class="text-xs uppercase tracking-widest text-accent font-medium mb-3">Enhancement Studio</p>
+                    <h2 class="text-3xl sm:text-4xl font-800 tracking-tight text-white">Drop your video. Hit enhance.</h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+                    <!-- Left Panel: Config (5 cols) -->
+                    <div class="lg:col-span-5 space-y-5">
+
+                        <!-- Upload -->
+                        <div class="glass rounded-2xl p-6">
+                            <h3 class="text-xs font-700 uppercase tracking-widest text-slate-400 mb-5 flex items-center gap-2">
+                                <i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-accent"></i>
+                                Source Video
+                            </h3>
+                            <div id="dropzone"
+                                 class="border-2 border-dashed border-border hover:border-accent/50 rounded-xl p-7 text-center cursor-pointer transition-all duration-300 bg-surface/50 hover:bg-accent/4 group">
+                                <input type="file" id="video-input" accept="video/mp4,video/x-m4v,video/*" class="hidden">
+
+                                <div id="dropzone-empty" class="space-y-3">
+                                    <div class="w-11 h-11 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                                        <i data-lucide="video" class="w-5 h-5 text-accent-hi"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-600 text-white">Click or drag & drop</p>
+                                        <p class="text-xs text-muted mt-1">MP4 · MKV · MOV · WEBM</p>
+                                    </div>
+                                </div>
+
+                                <div id="dropzone-preview" class="hidden text-left space-y-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-lg bg-accent/15 border border-accent/20 flex items-center justify-center flex-shrink-0">
+                                            <i data-lucide="file-video" class="w-5 h-5 text-accent-hi"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p id="preview-filename" class="text-sm font-600 text-white truncate">video.mp4</p>
+                                            <p id="preview-filesize" class="text-xs text-muted">0 MB</p>
+                                        </div>
+                                        <button id="btn-remove-video" class="p-1.5 text-muted hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/10">
+                                            <i data-lucide="x" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-2 pt-3 border-t border-border/60">
+                                        <div class="bg-surface/80 rounded-lg p-2.5 border border-border/50">
+                                            <span class="text-[10px] text-muted block mb-0.5">Resolution</span>
+                                            <span id="preview-res" class="text-xs font-700 text-white">-</span>
+                                        </div>
+                                        <div class="bg-surface/80 rounded-lg p-2.5 border border-border/50">
+                                            <span class="text-[10px] text-muted block mb-0.5">FPS</span>
+                                            <span id="preview-fps" class="text-xs font-700 text-white">-</span>
+                                        </div>
+                                        <div class="bg-surface/80 rounded-lg p-2.5 border border-border/50">
+                                            <span class="text-[10px] text-muted block mb-0.5">Duration</span>
+                                            <span id="preview-duration" class="text-xs font-700 text-white">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Model -->
+                        <div class="glass rounded-2xl p-6 space-y-5">
+                            <h3 class="text-xs font-700 uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                                <i data-lucide="sliders" class="w-3.5 h-3.5 text-accent"></i>
+                                AI Model
+                            </h3>
+
+                            <div class="space-y-2.5">
+                                <div class="model-option glass-active rounded-xl p-4 cursor-pointer transition-all duration-200 hover-lift"
+                                     data-model="RealESRGAN_x4plus" data-scale="4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div class="p-2 rounded-lg bg-accent/15 border border-accent/20">
+                                                <i data-lucide="camera" class="w-4 h-4 text-accent-hi"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-600 text-white">General Footage</p>
+                                                <p class="text-xs text-muted">Real cameras, nature, people</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] font-700 uppercase tracking-wider px-2 py-1 rounded-md bg-accent/20 text-accent-hi border border-accent/20">4x</span>
+                                    </div>
+                                </div>
+
+                                <div class="model-option glass rounded-xl p-4 cursor-pointer transition-all duration-200 hover-lift border border-border/60"
+                                     data-model="RealESRGAN_x4plus_anime_6B" data-scale="4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div class="p-2 rounded-lg bg-purple-500/15 border border-purple-500/20">
+                                                <i data-lucide="palette" class="w-4 h-4 text-purple-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-600 text-white">Anime & Illustration</p>
+                                                <p class="text-xs text-muted">Sharp lines, 2D art frames</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] font-700 uppercase tracking-wider px-2 py-1 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/20">4x</span>
+                                    </div>
+                                </div>
+
+                                <div class="model-option glass rounded-xl p-4 cursor-pointer transition-all duration-200 hover-lift border border-border/60"
+                                     data-model="realesr-animevideov3" data-scale="2">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div class="p-2 rounded-lg bg-pink-500/15 border border-pink-500/20">
+                                                <i data-lucide="zap" class="w-4 h-4 text-pink-400"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-600 text-white">Fast Anime Video</p>
+                                                <p class="text-xs text-muted">High-speed 2x restoration</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] font-700 uppercase tracking-wider px-2 py-1 rounded-md bg-pink-500/15 text-pink-300 border border-pink-500/20">2x Fast</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- VRAM Tile -->
+                            <div class="space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-xs font-600 text-slate-300">VRAM Tile Size</label>
+                                    <span class="text-[10px] text-emerald-400 font-medium">6GB: use 256px</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button type="button" class="tile-btn tile-inactive py-2.5 text-xs font-600 rounded-lg border transition-all duration-200 hover:border-accent/40" data-tile="128">
+                                        128px<br><span class="text-[10px] opacity-60">4GB+</span>
+                                    </button>
+                                    <button type="button" class="tile-btn tile-active py-2.5 text-xs font-600 rounded-lg border transition-all duration-200" data-tile="256">
+                                        256px<br><span class="text-[10px] opacity-70">6GB+</span>
+                                    </button>
+                                    <button type="button" class="tile-btn tile-inactive py-2.5 text-xs font-600 rounded-lg border transition-all duration-200 hover:border-accent/40" data-tile="0">
+                                        Full<br><span class="text-[10px] opacity-60">12GB+</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- FP16 -->
+                            <label class="flex items-center justify-between p-3.5 rounded-xl bg-surface/60 border border-border/60 cursor-pointer hover:border-accent/30 transition-colors">
+                                <div class="flex items-center gap-2.5">
+                                    <i data-lucide="cpu" class="w-4 h-4 text-emerald-400"></i>
+                                    <div>
+                                        <p class="text-xs font-600 text-white">FP16 Half-Precision</p>
+                                        <p class="text-[10px] text-muted">Halves VRAM · faster inference</p>
+                                    </div>
+                                </div>
+                                <div class="relative">
+                                    <input type="checkbox" id="fp16-toggle" checked class="sr-only peer">
+                                    <div class="w-9 h-5 bg-border rounded-full peer peer-checked:bg-accent transition-colors duration-300"></div>
+                                    <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 peer-checked:translate-x-4 peer-checked:left-0.5" style="transform: translateX(0); transition: transform 0.3s;"></div>
+                                </div>
+                            </label>
+
+                            <!-- Start CTA -->
+                            <button id="btn-start" disabled
+                                    class="w-full py-3.5 rounded-xl bg-accent hover:bg-accent-hi disabled:opacity-40 disabled:cursor-not-allowed text-white font-700 text-sm tracking-wide shadow-lg shadow-accent/25 hover:shadow-accent/45 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2">
+                                <i data-lucide="play" class="w-4 h-4"></i>
+                                Start Enhancement
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: HUD + Player (7 cols) -->
+                    <div class="lg:col-span-7 space-y-5">
+
+                        <!-- Live HUD -->
+                        <div id="hud-panel" class="hidden glass rounded-2xl p-6 space-y-5 border border-accent/25 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-accent to-transparent opacity-60"></div>
+
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="relative flex h-2.5 w-2.5">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent"></span>
+                                    </span>
+                                    <h3 id="hud-step-text" class="text-sm font-600 text-white">Initializing...</h3>
+                                </div>
+                                <span id="hud-percent" class="text-2xl font-900 font-mono stat-value">0%</span>
+                            </div>
+
+                            <div class="w-full h-2 rounded-full bg-surface border border-border/40 overflow-hidden">
+                                <div id="hud-progress-bar" class="h-full rounded-full progress-bar transition-all duration-500 w-0"></div>
+                            </div>
+
+                            <div class="grid grid-cols-4 gap-3">
+                                <div class="bg-surface/80 rounded-xl p-3 border border-border/50 text-center">
+                                    <p class="text-[9px] uppercase tracking-widest text-muted font-600 mb-1">Frames</p>
+                                    <p id="hud-frames" class="text-xs font-700 text-white font-mono">0 / 0</p>
+                                </div>
+                                <div class="bg-surface/80 rounded-xl p-3 border border-border/50 text-center">
+                                    <p class="text-[9px] uppercase tracking-widest text-muted font-600 mb-1">Speed</p>
+                                    <p id="hud-fps" class="text-xs font-700 text-accent-hi font-mono">0 fps</p>
+                                </div>
+                                <div class="bg-surface/80 rounded-xl p-3 border border-border/50 text-center">
+                                    <p class="text-[9px] uppercase tracking-widest text-muted font-600 mb-1">Elapsed</p>
+                                    <p id="hud-elapsed" class="text-xs font-700 text-white font-mono">0s</p>
+                                </div>
+                                <div class="bg-surface/80 rounded-xl p-3 border border-border/50 text-center">
+                                    <p class="text-[9px] uppercase tracking-widest text-muted font-600 mb-1">ETA</p>
+                                    <p id="hud-eta" class="text-xs font-700 text-emerald-400 font-mono">--</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Video Player -->
+                        <div class="glass rounded-2xl p-6 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-xs font-700 uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                                    <i data-lucide="play-circle" class="w-3.5 h-3.5 text-accent"></i>
+                                    Preview & Output
+                                </h3>
+                                <div id="output-actions" class="hidden">
+                                    <a id="btn-download" href="#" download
+                                       class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-700 flex items-center gap-2 shadow-lg shadow-emerald-600/25 transition-all duration-200">
+                                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                        Download
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="relative w-full aspect-video rounded-xl bg-surface border border-border/60 overflow-hidden flex items-center justify-center group">
+                                <div id="player-placeholder" class="text-center space-y-3 pointer-events-none">
+                                    <i data-lucide="film" class="w-12 h-12 mx-auto text-muted stroke-1"></i>
+                                    <p class="text-xs text-muted">Upload a video to preview</p>
+                                </div>
+                                <video id="main-video" controls class="hidden w-full h-full object-contain rounded-xl"></video>
+                            </div>
+
+                            <div id="comparison-badge" class="hidden items-center gap-3 p-3.5 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 flex-shrink-0"></i>
+                                <p class="text-xs text-emerald-300 font-600">Enhancement complete. Original audio preserved at lossless quality.</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="border-t border-border/40 py-12 px-6">
+            <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-white"></i>
+                    </div>
+                    <span class="text-sm font-600 text-white">AIVideoEnhancer</span>
+                </div>
+                <p class="text-xs text-muted">Real-ESRGAN · RRDBNet Architecture · Local GPU Inference</p>
+                <a href="https://github.com/vicky007111/AIVideoEnchancer" target="_blank"
+                   class="text-xs text-muted hover:text-white transition-colors flex items-center gap-1.5">
+                    <i data-lucide="github" class="w-3.5 h-3.5"></i>
+                    vicky007111 / AIVideoEnchancer
+                </a>
+            </div>
+        </footer>
 
     </main>
 
-    <!-- Footer -->
-    <footer class="mt-auto border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-        <p>AIVideoEnhancer • Real-ESRGAN RRDBNet Architecture • Local GPU Accelerated</p>
-    </footer>
-
-    <!-- Frontend Interactive Logic -->
     <script>
         lucide.createIcons();
 
-        let currentFile = null;
+        // GSAP + ScrollTrigger
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Hero entrance
+        gsap.timeline({ delay: 0.2 })
+            .to('#hero-tag',  { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', from: { y: 20 } })
+            .to('#hero-h1',   { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out', from: { y: 30 } }, '-=0.4')
+            .to('#hero-sub',  { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', from: { y: 20 } }, '-=0.5')
+            .to('#hero-ctas', { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', from: { y: 16 } }, '-=0.4');
+
+        // Set initial positions for hero animation
+        gsap.set(['#hero-tag','#hero-h1','#hero-sub','#hero-ctas'], { y: 30 });
+        gsap.set('#hero-tag', { y: 20 });
+        gsap.set('#hero-sub', { y: 20 });
+        gsap.set('#hero-ctas', { y: 16 });
+
+        // Bento cards scroll scale reveal
+        gsap.utils.toArray('.bento-card').forEach((card, i) => {
+            gsap.from(card, {
+                scrollTrigger: { trigger: card, start: 'top 85%', end: 'top 55%', scrub: 0.8 },
+                scale: 0.92, opacity: 0, y: 30,
+                ease: 'power2.out'
+            });
+        });
+
+        // Scrubbing text reveal
+        const words = document.querySelectorAll('.reveal-word');
+        words.forEach((word, i) => {
+            gsap.to(word, {
+                scrollTrigger: {
+                    trigger: '#reveal-section',
+                    start: 'top 75%',
+                    end: 'bottom 30%',
+                    scrub: 1.2,
+                    once: false
+                },
+                opacity: 1,
+                delay: i * 0.04,
+                ease: 'none'
+            });
+        });
+
+        // FP16 toggle visual fix
+        const fp16Input = document.getElementById('fp16-toggle');
+        const fp16Knob = fp16Input.closest('label').querySelector('.bg-white');
+        fp16Input.addEventListener('change', () => {
+            fp16Knob.style.transform = fp16Input.checked ? 'translateX(16px)' : 'translateX(0)';
+        });
+        fp16Knob.style.transform = 'translateX(16px)'; // default checked
+
+        // State
         let currentFilename = null;
         let selectedModel = 'RealESRGAN_x4plus';
         let selectedScale = 4;
         let selectedTile = 256;
-        let activeTaskId = null;
         let ws = null;
 
-        // Fetch GPU system info
-        async function fetchSystemInfo() {
+        // GPU info
+        (async () => {
             try {
                 const res = await fetch('/api/system_info');
                 const data = await res.json();
                 if (data.available) {
-                    document.getElementById('gpu-badge').classList.remove('hidden');
+                    const badge = document.getElementById('gpu-badge');
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
                     document.getElementById('gpu-name').textContent = data.name;
                     document.getElementById('gpu-vram').textContent = data.vram_total;
                 }
-            } catch (err) {
-                console.error(err);
-            }
-        }
-        fetchSystemInfo();
+            } catch (_) {}
+        })();
 
-        // Model selection handlers
+        // Model selection
         document.querySelectorAll('.model-option').forEach(card => {
             card.addEventListener('click', () => {
                 document.querySelectorAll('.model-option').forEach(c => {
-                    c.classList.remove('glass-panel-active');
-                    c.classList.remove('border-indigo-500/50');
+                    c.classList.remove('glass-active');
+                    c.classList.add('glass', 'border', 'border-border/60');
                 });
-                card.classList.add('glass-panel-active');
-                selectedModel = card.getAttribute('data-model');
-                selectedScale = parseInt(card.getAttribute('data-scale'));
+                card.classList.add('glass-active');
+                card.classList.remove('border', 'border-border/60');
+                selectedModel = card.dataset.model;
+                selectedScale = parseInt(card.dataset.scale);
             });
         });
 
-        // Tile selection handlers
+        // Tile buttons
         document.querySelectorAll('.tile-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tile-btn').forEach(b => {
-                    b.classList.remove('bg-indigo-600', 'border-indigo-400', 'text-white');
-                    b.classList.add('bg-slate-900', 'border-slate-700', 'text-slate-300');
+                    b.classList.remove('tile-active');
+                    b.classList.add('tile-inactive');
                 });
-                btn.classList.add('bg-indigo-600', 'border-indigo-400', 'text-white');
-                btn.classList.remove('bg-slate-900', 'border-slate-700', 'text-slate-300');
-                selectedTile = parseInt(btn.getAttribute('data-tile'));
+                btn.classList.add('tile-active');
+                btn.classList.remove('tile-inactive');
+                selectedTile = parseInt(btn.dataset.tile);
             });
         });
 
-        // Dropzone & File Upload
+        // Dropzone
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('video-input');
         const emptyView = document.getElementById('dropzone-empty');
@@ -441,41 +665,21 @@
         const mainVideo = document.getElementById('main-video');
         const playerPlaceholder = document.getElementById('player-placeholder');
 
-        dropzone.addEventListener('click', (e) => {
+        dropzone.addEventListener('click', e => {
             if (e.target.closest('#btn-remove-video')) return;
             fileInput.click();
         });
-
-        fileInput.addEventListener('change', async (e) => {
-            if (e.target.files.length > 0) {
-                handleFileUpload(e.target.files[0]);
-            }
-        });
-
-        dropzone.addEventListener('dragover', (e) => {
+        fileInput.addEventListener('change', e => { if (e.target.files[0]) upload(e.target.files[0]); });
+        dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('border-accent/60', 'bg-accent/5'); });
+        dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('border-accent/60', 'bg-accent/5'); });
+        dropzone.addEventListener('drop', e => {
             e.preventDefault();
-            dropzone.classList.add('border-indigo-500', 'bg-indigo-950/20');
+            dropzone.classList.remove('border-accent/60', 'bg-accent/5');
+            if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
         });
+        document.getElementById('btn-remove-video').addEventListener('click', e => { e.stopPropagation(); reset(); });
 
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
-            if (e.dataTransfer.files.length > 0) {
-                handleFileUpload(e.dataTransfer.files[0]);
-            }
-        });
-
-        document.getElementById('btn-remove-video').addEventListener('click', (e) => {
-            e.stopPropagation();
-            resetUpload();
-        });
-
-        function resetUpload() {
-            currentFile = null;
+        function reset() {
             currentFilename = null;
             fileInput.value = '';
             emptyView.classList.remove('hidden');
@@ -488,101 +692,81 @@
             document.getElementById('comparison-badge').classList.add('hidden');
         }
 
-        async function handleFileUpload(file) {
-            currentFile = file;
+        async function upload(file) {
             startBtn.disabled = true;
-            startBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i> Uploading & Analyzing...';
+            startBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Uploading...';
             lucide.createIcons();
 
-            const formData = new FormData();
-            formData.append('file', file);
+            const fd = new FormData();
+            fd.append('file', file);
 
             try {
-                const res = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                });
+                const res = await fetch('/api/upload', { method: 'POST', body: fd });
                 const data = await res.json();
+                if (!res.ok) { alert('Upload failed: ' + (data.detail || 'Error')); reset(); return; }
 
-                if (res.ok) {
-                    currentFilename = data.filename;
-                    emptyView.classList.add('hidden');
-                    previewView.classList.remove('hidden');
+                currentFilename = data.filename;
+                emptyView.classList.add('hidden');
+                previewView.classList.remove('hidden');
 
-                    document.getElementById('preview-filename').textContent = file.name;
-                    document.getElementById('preview-filesize').textContent = data.metadata.size_mb || `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-                    document.getElementById('preview-res').textContent = data.metadata.resolution || 'Auto';
-                    document.getElementById('preview-fps').textContent = (data.metadata.fps ? data.metadata.fps + ' fps' : '-');
-                    document.getElementById('preview-duration').textContent = data.metadata.duration || '-';
+                document.getElementById('preview-filename').textContent = file.name;
+                document.getElementById('preview-filesize').textContent = data.metadata?.size_mb || `${(file.size/1024/1024).toFixed(1)} MB`;
+                document.getElementById('preview-res').textContent = data.metadata?.resolution || '—';
+                document.getElementById('preview-fps').textContent = data.metadata?.fps ? data.metadata.fps + ' fps' : '—';
+                document.getElementById('preview-duration').textContent = data.metadata?.duration || '—';
 
-                    // Show in player
-                    mainVideo.src = data.video_url;
-                    mainVideo.classList.remove('hidden');
-                    playerPlaceholder.classList.add('hidden');
+                mainVideo.src = data.video_url;
+                mainVideo.classList.remove('hidden');
+                playerPlaceholder.classList.add('hidden');
 
-                    startBtn.disabled = false;
-                    startBtn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-white mr-2"></i> Start AI Enhancement';
-                    lucide.createIcons();
-                } else {
-                    alert('Upload failed: ' + (data.detail || 'Unknown error'));
-                    resetUpload();
-                }
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Start Enhancement';
+                lucide.createIcons();
             } catch (err) {
                 alert('Upload error: ' + err.message);
-                resetUpload();
+                reset();
             }
         }
 
-        // Start Enhancement Process
+        // Start enhancement
         startBtn.addEventListener('click', async () => {
             if (!currentFilename) return;
-
             startBtn.disabled = true;
-            startBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i> Processing Video...';
+            startBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processing...';
             lucide.createIcons();
 
             document.getElementById('hud-panel').classList.remove('hidden');
             document.getElementById('comparison-badge').classList.add('hidden');
             document.getElementById('output-actions').classList.add('hidden');
 
-            const useFp16 = document.getElementById('fp16-toggle').checked;
-
-            const form = new FormData();
-            form.append('filename', currentFilename);
-            form.append('model_name', selectedModel);
-            form.append('scale', selectedScale);
-            form.append('tile_size', selectedTile);
-            form.append('use_fp16', useFp16);
+            const fd = new FormData();
+            fd.append('filename', currentFilename);
+            fd.append('model_name', selectedModel);
+            fd.append('scale', selectedScale);
+            fd.append('tile_size', selectedTile);
+            fd.append('use_fp16', document.getElementById('fp16-toggle').checked);
 
             try {
-                const res = await fetch('/api/enhance', {
-                    method: 'POST',
-                    body: form
-                });
+                const res = await fetch('/api/enhance', { method: 'POST', body: fd });
                 const data = await res.json();
-                activeTaskId = data.task_id;
-                connectWebSocket(activeTaskId);
+                connectWS(data.task_id);
             } catch (err) {
-                alert('Enhancement failed to start: ' + err.message);
+                alert('Failed to start: ' + err.message);
                 startBtn.disabled = false;
             }
         });
 
-        // WebSocket for live progress
-        function connectWebSocket(taskId) {
-            const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${proto}//${window.location.host}/ws/task/${taskId}`);
-
-            ws.onmessage = (event) => {
-                const task = JSON.parse(event.data);
+        function connectWS(taskId) {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${proto}//${location.host}/ws/task/${taskId}`);
+            ws.onmessage = e => {
+                const task = JSON.parse(e.data);
                 updateHUD(task);
-
-                if (task.status === 'completed') {
-                    onTaskCompleted(task);
-                } else if (task.status === 'failed') {
-                    alert('Error during enhancement: ' + (task.error || 'Unknown error'));
+                if (task.status === 'completed') done(task);
+                else if (task.status === 'failed') {
+                    alert('Error: ' + (task.error || 'Unknown'));
                     startBtn.disabled = false;
-                    startBtn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-white mr-2"></i> Retry Enhancement';
+                    startBtn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Retry';
                     lucide.createIcons();
                 }
             };
@@ -590,32 +774,36 @@
 
         function updateHUD(task) {
             document.getElementById('hud-step-text').textContent = task.current_step || 'Processing...';
-            document.getElementById('hud-percent').textContent = `${task.progress.toFixed(1)}%`;
-            document.getElementById('hud-progress-bar').style.width = `${task.progress}%`;
+            document.getElementById('hud-percent').textContent = task.progress.toFixed(1) + '%';
+            document.getElementById('hud-progress-bar').style.width = task.progress + '%';
             document.getElementById('hud-frames').textContent = `${task.current_frame} / ${task.total_frames || '?'}`;
-            document.getElementById('hud-fps').textContent = `${task.processing_fps} fps`;
-            document.getElementById('hud-elapsed').textContent = `${task.elapsed_time}s`;
-            document.getElementById('hud-eta').textContent = task.eta_seconds > 0 ? `${task.eta_seconds}s` : '--';
+            document.getElementById('hud-fps').textContent = task.processing_fps + ' fps';
+            document.getElementById('hud-elapsed').textContent = task.elapsed_time + 's';
+            document.getElementById('hud-eta').textContent = task.eta_seconds > 0 ? task.eta_seconds + 's' : '--';
         }
 
-        function onTaskCompleted(task) {
-            startBtn.disabled = false;
-            startBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 mr-2"></i> Enhanced Successfully';
-            lucide.createIcons();
-
-            // Load enhanced video into main player
+        function done(task) {
             mainVideo.src = task.output_url;
             mainVideo.load();
             mainVideo.play();
 
-            // Show download & completion banner
-            const downloadBtn = document.getElementById('btn-download');
-            downloadBtn.href = task.output_url;
-            downloadBtn.download = task.output_filename;
+            const dl = document.getElementById('btn-download');
+            dl.href = task.output_url;
+            dl.download = task.output_filename;
 
             document.getElementById('output-actions').classList.remove('hidden');
-            document.getElementById('comparison-badge').classList.remove('hidden');
+            const badge = document.getElementById('comparison-badge');
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> Enhanced Successfully';
+            lucide.createIcons();
+
+            // Scale-in the video player
+            gsap.from(mainVideo, { scale: 0.95, opacity: 0, duration: 0.6, ease: 'power3.out' });
         }
     </script>
+
 </body>
 </html>
