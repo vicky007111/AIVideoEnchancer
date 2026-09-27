@@ -27,7 +27,7 @@ def ensure_models_dir(models_dir="./models"):
 
 def load_realesrgan_weights(model, model_path, device='cuda'):
     """Load weights into Real-ESRGAN model."""
-    loadnet = torch.load(model_path, map_location=torch.device('cpu'), weights_only=True)
+    loadnet = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
     if 'params_ema' in loadnet:
         keyname = 'params_ema'
     elif 'params' in loadnet:
