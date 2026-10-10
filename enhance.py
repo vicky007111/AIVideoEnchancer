@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument('-i', '--input', required=True, help='Input video path')
     parser.add_argument('-o', '--output', required=True, help='Output video path')
     parser.add_argument('-s', '--scale', type=int, default=4, choices=[2, 4], help='Upscale factor (2 or 4, default: 4)')
-    parser.add_argument('-m', '--model', default='RealESRGAN_x4plus', choices=['RealESRGAN_x4plus', 'RealESRGAN_x4plus_anime_6B', 'realesr-animevideov3'], help='Model name')
+    parser.add_argument('-m', '--model', default='RealESRGAN_x4plus', choices=['RealESRGAN_x4plus', 'RealESRGAN_x2plus', 'RealESRGAN_x4plus_anime_6B', 'realesr-animevideov3'], help='Model name')
     parser.add_argument('--tile', type=int, default=256, help='Tile size for VRAM management (0=no tiling, default: 256)')
     parser.add_argument('--tile_pad', type=int, default=10, help='Tile padding for blending (default: 10)')
     parser.add_argument('--fp32', action='store_true', help='Use fp32 precision (default: fp16/half)')
@@ -75,6 +75,10 @@ def main():
         models_dir=args.model_dir,
         device=device
     )
+
+    # ponytail: convert model once before processing, not per-tile
+    if half_precision:
+        model = model.half()
 
     # Initialize Processor
     processor = TileProcessor(

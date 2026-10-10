@@ -109,6 +109,10 @@ def process_video_task(
             device=device
         )
 
+        # ponytail: convert model once before processing, not per-tile
+        if half_precision:
+            model = model.half()
+
         processor = TileProcessor(
             tile_size=tile_size,
             tile_pad=tile_pad,
@@ -201,6 +205,13 @@ async def list_models():
             "scale": 4,
             "description": "Best for realistic videos, real camera footage, faces, and nature.",
             "recommended": True
+        },
+        {
+            "id": "RealESRGAN_x2plus",
+            "name": "Real-World General (2x) — Faster",
+            "scale": 2,
+            "description": "Same quality as 4x model but 2x scale — much faster, lower VRAM. Great for HD footage.",
+            "recommended": False
         },
         {
             "id": "RealESRGAN_x4plus_anime_6B",

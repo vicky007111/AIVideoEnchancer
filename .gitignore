@@ -41,3 +41,15 @@ htmlcov/
 *.mov
 *.avi
 !tests/*.mp4
+
+# Generated video files
+uploads/
+outputs/
+
+# Python virtual environment and cache
+.venv/
+__pycache__/
+*.py[cod]
+
+# Claude Code worktrees
+.claude/worktrees/

@@ -45,8 +45,9 @@ class RRDBNet(nn.Module):
     def __init__(self, num_in_ch=3, num_out_ch=3, scale=4, num_feat=64, num_block=23, num_grow_ch=32):
         super(RRDBNet, self).__init__()
         self.scale = scale
+        # ponytail: x2plus uses pixel_unshuffle (3ch -> 12ch), x4plus doesn't
         if scale == 2:
-            num_in_ch = num_in_ch
+            num_in_ch = num_in_ch * 4  # 3 -> 12
         elif scale == 1:
             num_in_ch = num_in_ch
 
@@ -65,6 +66,10 @@ class RRDBNet(nn.Module):
         self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
 
     def forward(self, x):
+        # ponytail: x2plus uses pixel_unshuffle to downsample spatially, upsample in channels
+        if self.scale == 2:
+            x = F.pixel_unshuffle(x, downscale_factor=2)
+
         feat = self.conv_first(x)
         body_feat = self.conv_body(self.body(feat))
         feat = feat + body_feat
@@ -75,6 +80,7 @@ class RRDBNet(nn.Module):
             feat = self.lrelu(self.conv_up2(F.interpolate(feat, scale_factor=2, mode='nearest')))
         elif self.scale == 2:
             feat = self.lrelu(self.conv_up1(F.interpolate(feat, scale_factor=2, mode='nearest')))
+            feat = self.lrelu(self.conv_up2(F.interpolate(feat, scale_factor=2, mode='nearest')))
         elif self.scale == 1:
             pass
         elif self.scale == 8:

@@ -19,6 +19,19 @@ def test_tile_processor():
     assert output.shape == (512, 512, 3), f"Expected shape (512, 512, 3), got {output.shape}"
     assert output.dtype == np.uint8
 
+def test_tile_processor_odd_resolution_2x():
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model = RRDBNet(num_in_ch=3, num_out_ch=3, scale=2, num_feat=64, num_block=6, num_grow_ch=32).to(device)
+    processor = TileProcessor(tile_size=64, tile_pad=10, Half_precision=False, device=device)
+
+    # 100x150 image with 3 channels (non-divisible tile bounds)
+    dummy_img = (np.random.rand(100, 150, 3) * 255).astype(np.uint8)
+
+    output = processor.process(dummy_img, model, scale=2)
+
+    assert output.shape == (200, 300, 3), f"Expected shape (200, 300, 3), got {output.shape}"
+    assert output.dtype == np.uint8
+
 if __name__ == '__main__':
     test_tile_processor()
     print("TileProcessor tests passed")
